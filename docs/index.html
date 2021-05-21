@@ -1,0 +1,271 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }  
+  </style> 
+<title>Peter Kang  |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3: PathTracer</h1>
+    <h2 align="middle">Peter Kang</h2>
+
+    <div class="padded">
+        <p>In this project, I implemented pathtracing which allows me to render various scenes with various lighting models. Various challenges included speeding up intersection tests, implementing direct and global illumination, and setting up a ray tracing system.These lighting models are able to produce some realistically lit scenes.</p>
+
+    <h2 align="middle">Part 1: Ray Generation and Intersection</h2>
+        <p>In this section I implemented basic ray generation and intersection. First I worked on generating rays for our rendering pipeline. This involved implementing the function raytrace_pixel(...) which takes in our pixel coordinates (x,y) and updates it based on a Spectrum which represents the integral of radiance. In order to calculate this Spectrum, i took random samples of world space rays which were generated rays exiting the camera which deposits light on the sensor plane. This required a camera to world matrix which allows me to convert a ray in camera space coordinates to world space coordinates depending on the horizontal and vertical fov. I was then able to avg these samples to get an overall estimate of this integral of radiance and thus update the sample buffer at the inputed pixel coordinate.</p>
+        <p>Next i worked on determining when rays intersect triangle planes and spheres. To compute triangle interesection efficiently, I implemented the Moller Trumbore Algorithm which allows us to calculate a time value t and barycentric coordinates through the following equations:</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    	<img src="./images/p1_formula.PNG" width="480px" />
+                    	<figcaption align="middle">Empty</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+        <p>Using our computed t value and barycentric coordinates, we can check if the ray intersects with the plane by checking if t is within our min_t and max_t values of a given the given ray. We can thus also check if the ray intersecting point is within our triangle using our barycentric coordinates to conduct a quick inside triangle test. Sphere intersection on the other hand can be checked by calculating a time value t using the following equations:</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    	<img src="./images/p1_formula2.PNG" width="480px" />
+                    	<figcaption align="middle">Empty</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+        <p>We can from here use t to check whether the ray intersects our sphere. Our value t can have no roots for no intersection, one root for a tangent line, and two roots for intersection.</p>
+
+        <p>The following are some resulting renderings from the ray generation and intersection implementation:</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    	<img src="./images/p1_empty.png" width="480px" />
+                    	<figcaption align="middle">Empty</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/p1_spheres.png" width="480px" />
+                    	<figcaption align="middle">Spheres</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/p1_coil.png" width="480px" />
+                    	<figcaption align="middle">Coil</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+
+
+    <h2 align="middle">Part 2: Bounding Volume Hierarchy</h2>
+    	<p>The BVH construction algorithm is as follows. First I created a bounding box out of all primitives passed in. I then check if the number of primitives is less than the max leaf size we set in order to create a base case. In this base case, I can simply return a leaf node that stores all the primitives passed in. Otherwise, I split the collection of primitives into a left and right collection. My split point was based on the average of centroids along the largest axis of the bounding box. I could thus divide each primitive based on the centroid of its bounding box in comparision to the average centroid of all bounding boxes. If all primitives went into one collection, I simply would return a leaf node in the same way I did above. Otherwise I would recursively call the BVH construction algorithm on the left or right collections and store the resulting child nodes into my current node. I can then return this node.</p>
+    	
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    	<img src="./images/p2_cow.png" width="480px" />
+                    	<figcaption align="middle">Without BVH: 56.2524s, With BVH: 0.0958s</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/p2_beetle.png" width="480px" />
+                    	<figcaption align="middle">Without BVH: 45.0894s, With BVH: 0.1958s</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/p2_teapot.png" width="480px" />
+                    	<figcaption align="middle">Without BVH: 18.0154s, With BVH: 0.0695s</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+
+	<div align="center">
+            <table style="width=100%">
+        		<tr>
+                	<td align="middle">
+                    	<img src="./images/p2_maxplanck.png" width="480px" />
+                    	<figcaption align="middle">maxplanck unreasonable to render without BVH</figcaption>
+                	</td>
+                	<td align="middle">
+                    	<img src="./images/p2_CBlucy.png" width="480px" />
+                    	<figcaption align="middle">CBlucy unreasonable to render without BVH</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+
+        <p>Above we have some renders which had their render times significantly sped up. With a BVH we can seperate our bounding boxes into various nodes and eliminate checking the bounding boxes that we know our ray cannot intersect as opposed to the brute force method of checking every single bounding box. This optimization significantly increases the render speeds to the degrees shown above. A good splitting heuristic could allows to reduce our render time from linear complexity to logarithmic complexity based on the number of primitives our render.</p>
+
+    <h2 align="middle">Part 3: Direct Illumination</h2>
+    	<p>In order to implement direct illumination, I had written two functions: estimate_direct_lighting_hemisphere, and estimate_direct_lighting_importance. To implement estimate_direct_lighting_hemisphere, I first took uniform samples around a given hit point and got the radiance from every ray intersecting that point and a light source. We can thus average all these sampled rays and weight it by the pdf and the angle of our sample to get our direct illumination. For estimate_direct_lighting_importance, we sample every light source and check to see if it reaches our hit point unobstructed. If it does, then we can weight it and add to our average like before.</p>
+
+    	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    	<img src="./images/CBbunny_Hemisphere.png" width="480px" />
+                    	<figcaption align="middle">Hemisphere Lighting</figcaption>
+                	</td>
+                	<td align="middle">
+                    	<img src="./images/CBbunny_Importance.png" width="480px" />
+                    	<figcaption align="middle">Importance Lighting</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_H_1.png" width="480px" />
+                    	<figcaption align="middle">1 lightray, 1 sample per pixel, lots of noise</figcaption>
+                	</td>
+                	<td align="middle">
+                    	<img src="./images/bunny_H_4.png" width="480px" />
+                    	<figcaption align="middle">4 lightrays, 1 sample per pixel, some noise</figcaption>
+                	</td>
+                	<td align="middle">
+                    	<img src="./images/bunny_H_16.png" width="480px" />
+                    	<figcaption align="middle">16 lightrays, 1 sample per pixel, less noise</figcaption>
+                	</td>
+                	<td align="middle">
+                    	<img src="./images/bunny_H_64.png" width="480px" />
+                    	<figcaption align="middle">64 lightrays, 1 sample per pixel, even less noise</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+
+        <p>In hemisphere sampling, we are taking samples in all directions around a hit point which means we also include rays that don't actually point from a light source. Because we get a good number of these rays that don't contribute to our total radiance, we end up with a lot of noise. In comparison, importance sampling only takes samples that actually adds to the total radiance. As a result, we don't have any zero radiance rays that we sample and so we have far less noise in images rendered using importance sampling.</p>
+
+    <h2 align="middle">Part 4: Global Illumination</h2>
+    	<p>The indirect lighting function accounts for rays that our bouncing off our hit points from other objects, not just direct light sources. To implement this, I have a recursive function that samples rays from other directions and adds it to our total radiance. There does however exist a problem which is that there is no base case to stop our recursion. To solve froe this, we have a depth parameter that terminates after the max levels of recursion have been reached. We also have a russian roulette chance to terminate. This allows us to speed up our renderings for large depths.</p>
+
+    	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    	<img src="./images/spheres_direct.png" width="480px" />
+                    	<figcaption align="middle">Only direct illumination, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_indirect.png" width="480px" />
+                    	<figcaption align="middle">Only indirect illumination, 1024 samples per pixel</figcaption>
+                	</td>
+				</tr>
+				<tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_both.png" width="480px" />
+                    	<figcaption align="middle">Both illumination, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_0_depth.png" width="480px" />
+                    	<figcaption align="middle">max depth 0, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_1_depth.png" width="480px" />
+                    	<figcaption align="middle">max depth 1, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_2_depth.png" width="480px" />
+                    	<figcaption align="middle">max depth 2, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_3_depth.png" width="480px" />
+                    	<figcaption align="middle">max depth 3, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_100_depth.png" width="480px" />
+                    	<figcaption align="middle">max depth 100, 1024 samples per pixel</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_1_sample.png" width="480px" />
+                    	<figcaption align="middle">1 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_2_sample.png" width="480px" />
+                    	<figcaption align="middle">2 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_4_sample.png" width="480px" />
+                    	<figcaption align="middle">4 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_8_sample.png" width="480px" />
+                    	<figcaption align="middle">8 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_16_sample.png" width="480px" />
+                    	<figcaption align="middle">16 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_64_sample.png" width="480px" />
+                    	<figcaption align="middle">64 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+                <tr>
+                	<td align="middle">
+                    	<img src="./images/spheres_1024_sample.png" width="480px" />
+                    	<figcaption align="middle">1024 sample per pixel, 4 light rays</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+
+    <h2 align="middle">Part 5: Adaptive Sampling</h2>
+    	<p>There are some pixels with a lot more variation than others. We can be more effecient by picking which pixels needs more samples. We can calculate whether a pixel converges as we sample through it. If it converges beyond a certain point, we can terminate our sampling. Otherwise we continue to sample to get more detail. I implemented adaptive sampling by checking every pre-set number of samples (by default 32) wether our pixel converges to the following tolerance of I <= maxTolerance * μ. We have I = 1.96 * σ / sqrt(n), where σ = s1 / n and μ = (1 / (n - 1)) * (s2 - (s12 / n)). s1 is a summation of our illuminace for n samples while s2 is that summation squared. We can look at the sampling rates below, where red shows high sampling rates and blue shows lower sampling rates.</p>
+
+    <div align="center">
+            <table style="width=100%">
+        		<tr>
+                	<td align="middle">
+                    	<img src="./images/bunny_adaptive.png" width="480px" />
+                    	<figcaption align="middle">Adaptive sampling render</figcaption>
+                	</td>
+                	<td align="middle">
+                    	<img src="./images/bunny_adaptive_rate.png" width="480px" />
+                    	<figcaption align="middle">Adaptive sampling rate</figcaption>
+                	</td>
+                </tr>
+            </table>
+        </div>
+
